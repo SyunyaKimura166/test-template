@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '\n💡 会話が終了しました。変更をコミットしてログをアップロードする場合は /upload-logs を実行してください。'"
+          }
+        ]
+      }
+    ]
+  }
+}

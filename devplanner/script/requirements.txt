@@ -1,0 +1,5 @@
+# soda_invoker.py 依存パッケージ
+# 改修案2: Soda Remote MCP直接呼び出し用
+
+boto3>=1.34.0
+requests>=2.31.0
