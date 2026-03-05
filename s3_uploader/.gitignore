@@ -1,0 +1,20 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Output directories
+output/
+output_*/
+
+# Local settings
+.claude/settings.local.json
+.claude/uploader_config.json
+
+# Upload history
+.claude/upload_history/
