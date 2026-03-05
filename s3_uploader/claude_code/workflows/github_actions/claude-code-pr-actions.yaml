@@ -1,0 +1,91 @@
+name: Claude PR Action 
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: write
+  
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude-pr:
+    if: |
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issues' && contains(github.event.issue.body, '@claude'))
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Parse Base Branch
+        id: parse_branch
+        run: |
+          # イベントタイプに応じて入力テキストを取得
+          if [[ "${{ github.event_name }}" == "issues" ]]; then
+            INPUT_TEXT="${{ github.event.issue.body }}"
+          else
+            INPUT_TEXT="${{ github.event.comment.body }}"
+          fi
+
+          # Pythonスクリプトでブランチ名をパース
+          BRANCH_NAME=$(echo "$INPUT_TEXT" | python3 claude_code/workflows/utils/parse_branch.py 2>/dev/null || echo "")
+
+          # デフォルトブランチの設定
+          BASE_BRANCH="${BRANCH_NAME:-main}"
+
+          # ブランチ名の妥当性チェック（長さ制限）
+          if [[ ${#BASE_BRANCH} -gt 100 ]]; then
+            echo "Branch name too long (${#BASE_BRANCH} chars), using default: main"
+            BASE_BRANCH="main"
+          fi
+
+          if [[ -n "$BRANCH_NAME" ]]; then
+            echo "Found valid base branch: $BASE_BRANCH"
+          else
+            echo "No branch specified, using default: $BASE_BRANCH"
+          fi
+
+          echo "base_branch=$BASE_BRANCH"
+          echo "base_branch=$BASE_BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          trigger_phrase: "@claude"
+          # timeout_minutes: "60"
+          base_branch: ${{ steps.parse_branch.outputs.base_branch }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          use_bedrock: "true"
+          claude_args: |
+            --system-prompt "You are software enginner."
+            --max-turns 1000
+            --model "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+            --allowed-tools "git fetch,git pull,git merge,git push,git add,git commit,git status,git diff"
