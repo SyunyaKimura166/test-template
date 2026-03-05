@@ -1,0 +1,3 @@
+[submodule "examples/aa2block"]
+	path = examples/aa2block
+	url = https://github.com/IoVPF-AgenticSoftwareEngineering/aa2block.git
